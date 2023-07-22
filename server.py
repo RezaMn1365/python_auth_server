@@ -47,11 +47,11 @@ def sign_in():
     if auth and auth.username == USERNAME and auth.password == PASSWORD:
         access_token = generate_access_token()
         refresh_token = generate_refresh_token()
-        tokens[access_token] = int(time.time()) + 900  # Set expiration time to 15 minutes from now
+        tokens[access_token] = int(time.time()) + 1500  # Set expiration time to 15 minutes from now
         return {
             'access_token': access_token,
             'refresh_token': refresh_token,
-            'expires_in': 900  # 15 minutes in seconds
+            'expires_in': 1500  # 15 minutes in seconds
         }
     else:
         return Response('Access denied. Please provide valid credentials.', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
@@ -64,12 +64,12 @@ def refresh_token():
         delete_expired_tokens()  # Delete expired tokens before generating a new one
 
         access_token = generate_access_token()
-        tokens[access_token] = int(time.time()) + 900  # Set expiration time to 15 minutes from now
+        tokens[access_token] = int(time.time()) + 1500  # Set expiration time to 15 minutes from now
 
         return {
             'access_token': access_token,
             'refresh_token': refresh_token,
-            'expires_in': 900  # 15 minutes in seconds
+            'expires_in': 1500  # 15 minutes in seconds
         }
     else:
         return Response('Invalid refresh token.', 401)
