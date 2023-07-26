@@ -1,5 +1,6 @@
 import secrets
 import time
+import sqlite3
 from flask import Flask, request, Response
 
 app = Flask(__name__)
@@ -10,6 +11,9 @@ PASSWORD = 'password'
 
 # Store generated tokens and their expiration time
 tokens = {}
+
+# SQLite database file
+DB_FILE = 'user_profiles.db'
 
 def generate_access_token():
     access_token = secrets.token_hex(16)
@@ -27,6 +31,27 @@ def delete_expired_tokens():
         if expiration_time < current_time:
             del tokens[access_token]
 
+def create_user_profile_table():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            password TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def verify_user(username, password):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE username=? AND password=?', (username, password))
+    user = cursor.fetchone()
+    conn.close()
+    return user is not None
+
 @app.route('/')
 def index():
     return 'Welcome to the authentication server!'
@@ -42,19 +67,21 @@ def protected():
 
 @app.route('/signin', methods=['POST'])
 def sign_in():
-    auth = request.authorization
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
 
-    if auth and auth.username == USERNAME and auth.password == PASSWORD:
+    if verify_user(username, password):
         access_token = generate_access_token()
         refresh_token = generate_refresh_token()
-        tokens[access_token] = int(time.time()) + 1500  # Set expiration time to 15 minutes from now
+        tokens[access_token] = int(time.time()) + 900  # Set expiration time to 15 minutes from now
         return {
             'access_token': access_token,
             'refresh_token': refresh_token,
-            'expires_in': 1500  # 15 minutes in seconds
+            'expires_in': 900  # 15 minutes in seconds
         }
     else:
-        return Response('Access denied. Please provide valid credentials.', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
+        return Response('Access denied. Please provide valid credentials.', 401)
 
 @app.route('/refresh_token', methods=['POST'])
 def refresh_token():
@@ -64,15 +91,16 @@ def refresh_token():
         delete_expired_tokens()  # Delete expired tokens before generating a new one
 
         access_token = generate_access_token()
-        tokens[access_token] = int(time.time()) + 1500  # Set expiration time to 15 minutes from now
+        tokens[access_token] = int(time.time()) + 900  # Set expiration time to 15 minutes from now
 
         return {
             'access_token': access_token,
             'refresh_token': refresh_token,
-            'expires_in': 1500  # 15 minutes in seconds
+            'expires_in': 900  # 15 minutes in seconds
         }
     else:
         return Response('Invalid refresh token.', 401)
 
 if __name__ == '__main__':
+    create_user_profile_table()  # Create the user profile table if it doesn't exist
     app.run()
